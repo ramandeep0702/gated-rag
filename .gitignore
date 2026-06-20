@@ -1,0 +1,28 @@
+# --- data: never commit the corpus or derived artifacts ---
+data/
+*.parquet
+*.delta
+.faiss/                 # local FAISS index dir (configs/default.yaml -> retrieval.faiss.persist_path)
+# NOTE: eval/golden/*.jsonl is intentionally NOT ignored — it is derived from CUAD
+#       (public, CC BY 4.0) and committing it makes the eval reproducible. Regenerable either way.
+
+# --- secrets ---
+.env
+*.token
+.databrickscfg
+**/secrets.*
+
+# --- python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# --- mlflow / local runs ---
+mlruns/

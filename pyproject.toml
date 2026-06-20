@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gated-rag"
+version = "0.0.0"
+description = "Contract-intelligence RAG over CUAD with enforced retrieval-quality eval gates."
+requires-python = ">=3.10"
+dependencies = [
+  # Pin exact versions in your environment. Several of these ship on Databricks runtimes.
+  "datasets",               # load CUAD from Hugging Face (theatticusproject/cuad-qa)
+  "pyyaml",                 # config loading
+  "numpy",
+  "faiss-cpu",              # default retriever backend  # VERIFY: installs/imports on Free Edition cluster
+  "sentence-transformers",  # default embedder backend
+  "tiktoken",               # token counting for token-strategy chunking
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+# Databricks Vector Search client — only needed if retrieval.backend == vector_search
+vectorsearch = ["databricks-vectorsearch"]  # VERIFY: requires Vector Search entitlement
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100

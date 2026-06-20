@@ -1,0 +1,2 @@
+# CUAD-derived golden set (cuad_golden.jsonl) lands here.
+# Each line: {"question": ..., "contract_id": ..., "answer_spans": [[start, end], ...]}
