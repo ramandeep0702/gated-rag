@@ -1,0 +1,63 @@
+# Databricks Asset Bundle — the medallion pipeline as a 4-task Job.
+# Deploy:  databricks bundle deploy -t dev
+# Run:     databricks bundle run gated_rag_medallion -t dev
+# In the workspace this shows up under Workflows as a task DAG (the "pipeline view"):
+#   ingest_bronze -> chunk_silver -> embed_gold -> index_and_eval (the gate)
+#
+# Tasks pull the notebooks straight from GitHub (source: GIT), so each task's working dir is the
+# repo checkout and the notebooks' `src/` bootstrap resolves. No cluster is specified — on Free
+# Edition the tasks run on serverless compute.
+
+bundle:
+  name: gated-rag
+
+variables:
+  # Max contracts for the ingest task. "25" = fast first run; set to "" for the full ~510 corpus.
+  limit:
+    default: "25"
+
+resources:
+  jobs:
+    gated_rag_medallion:
+      name: gated-rag-medallion
+      git_source:
+        git_url: https://github.com/ramandeep0702/gated-rag
+        git_provider: gitHub
+        git_branch: main
+
+      tasks:
+        - task_key: ingest_bronze
+          notebook_task:
+            notebook_path: notebooks/01_ingest.py
+            source: GIT
+            base_parameters:
+              limit: ${var.limit}
+
+        - task_key: chunk_silver
+          depends_on:
+            - task_key: ingest_bronze
+          notebook_task:
+            notebook_path: notebooks/02_chunk_silver.py
+            source: GIT
+
+        - task_key: embed_gold
+          depends_on:
+            - task_key: chunk_silver
+          notebook_task:
+            notebook_path: notebooks/03_embed_gold.py
+            source: GIT
+
+        - task_key: index_and_eval
+          depends_on:
+            - task_key: embed_gold
+          notebook_task:
+            notebook_path: notebooks/04_index_and_eval.py
+            source: GIT
+
+targets:
+  dev:
+    default: true
+    # Fill in your workspace URL (Free Edition looks like https://dbc-xxxxxxxx-xxxx.cloud.databricks.com).
+    # Or run `databricks configure` first and `databricks bundle deploy` picks up the host.
+    workspace:
+      host: https://REPLACE-WITH-YOUR-WORKSPACE-HOST
