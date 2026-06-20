@@ -44,6 +44,7 @@ class EmbeddingConfig:
     batch_size: int
     normalize: bool
     dim: int
+    query_prefix: str = ""   # instruction prepended to queries only (BGE-style asymmetric retrieval)
 
 
 @dataclass

@@ -54,7 +54,7 @@ class FaissRetriever(Retriever):
             raise RuntimeError("index is empty; call index() or load() first")
 
         k = min(top_k or self.cfg.top_k, len(self._meta))
-        vec = self.embedder.embed([text]).astype(np.float32)
+        vec = self.embedder.embed([text], is_query=True).astype(np.float32)
         scores, ids = self._index.search(vec, k)
 
         out: list[RetrievedChunk] = []

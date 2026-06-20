@@ -19,17 +19,28 @@ SOURCE = "theatticusproject/cuad-qa"
 
 
 def load_cuad(cfg: CorpusConfig) -> Iterable[dict[str, Any]]:
-    """Yield raw CUAD QA records from Hugging Face (respecting cfg.limit).
+    """Yield raw CUAD QA records from Hugging Face.
 
     Each record: {id, title, context, question, answers:{text:[...], answer_start:[...]}}.
-    The heavy `datasets` import is deferred so importing this module stays cheap in tests.
+    cfg.limit caps the number of distinct *contracts* (not QA rows), matching the config's intent
+    — all clause questions for the first N contracts are yielded. The heavy `datasets` import is
+    deferred so importing this module stays cheap in tests.
     """
     from datasets import load_dataset
 
-    ds = load_dataset(cfg.hf_dataset, split=cfg.hf_split)
-    for i, rec in enumerate(ds):
-        if cfg.limit is not None and i >= cfg.limit:
+    try:
+        ds = load_dataset(cfg.hf_dataset, split=cfg.hf_split)
+    except RuntimeError:
+        # datasets>=3 dropped script-based loaders and CUAD ships a `cuad-qa.py` loader script.
+        # Fall back to the Hub's auto-converted parquet branch — identical rows, no script.
+        ds = load_dataset(cfg.hf_dataset, split=cfg.hf_split, revision="refs/convert/parquet")
+
+    seen: set[str] = set()
+    for rec in ds:
+        title = rec["title"]
+        if cfg.limit is not None and title not in seen and len(seen) >= cfg.limit:
             break
+        seen.add(title)
         yield dict(rec)
 
 

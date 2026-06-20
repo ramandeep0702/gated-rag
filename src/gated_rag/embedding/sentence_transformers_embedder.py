@@ -21,11 +21,17 @@ class SentenceTransformersEmbedder(Embedder):
             self._st = SentenceTransformer(self.cfg.model)
         return self._st
 
-    def embed(self, texts: Sequence[str]) -> np.ndarray:
-        """Encode in batches of cfg.batch_size; L2-normalize if configured; return float32."""
+    def embed(self, texts: Sequence[str], is_query: bool = False) -> np.ndarray:
+        """Encode in batches of cfg.batch_size; L2-normalize if configured; return float32.
+
+        For queries, prepend cfg.query_prefix (e.g. the BGE search instruction) so asymmetric
+        retrieval works; passages are encoded raw.
+        """
         texts = list(texts)
         if not texts:
             return np.zeros((0, self.cfg.dim), dtype=np.float32)
+        if is_query and self.cfg.query_prefix:
+            texts = [self.cfg.query_prefix + t for t in texts]
 
         vecs = self._model().encode(
             texts,

@@ -30,6 +30,8 @@ embedding:
   batch_size: 64
   normalize: true                          # L2-normalize vectors so inner-product == cosine similarity
   dim: 384                                 # embedding dimension; MUST match the model + FAISS index + VS endpoint
+  # BGE models need a query-side instruction for asymmetric retrieval; passages are embedded raw.
+  query_prefix: "Represent this sentence for searching relevant passages: "
 
 retrieval:
   backend: faiss                           # faiss (default, always works) | vector_search (Databricks)  # VERIFY VS on Free Edition

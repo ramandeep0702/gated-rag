@@ -11,8 +11,13 @@ class Embedder(ABC):
     """Turns text into vectors. Swap the impl in config without touching callers."""
 
     @abstractmethod
-    def embed(self, texts: Sequence[str]) -> np.ndarray:
-        """Return a (len(texts), dim) float32 array. Honor batch_size and the normalize flag."""
+    def embed(self, texts: Sequence[str], is_query: bool = False) -> np.ndarray:
+        """Return a (len(texts), dim) float32 array. Honor batch_size and the normalize flag.
+
+        is_query distinguishes search queries from indexed passages: some models (e.g. BGE) need a
+        query-side instruction prefix for asymmetric retrieval, so passages and queries must be
+        embedded differently. Passage embedding is the default (is_query=False).
+        """
         raise NotImplementedError
 
     @property
