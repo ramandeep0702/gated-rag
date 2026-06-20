@@ -33,17 +33,30 @@ thresholds in [`configs/default.yaml`](../configs/default.yaml).
 3. On the `01_ingest` task, set parameter `limit = 25` for a fast first run (blank = full corpus).
 4. Run. You get the task-DAG pipeline view; `eval_runs` accumulates one row per run.
 
-## Run option B — Asset Bundle (infra-as-code)
+## Run option B — one-command deploy (infra-as-code)
 
-From a machine with the Databricks CLI configured for your workspace:
+The deploy scripts install the Databricks CLI if needed, authenticate from env vars, validate the
+bundle, deploy the Job, and (with the run flag) trigger it. Get a token from Databricks →
+**Settings → Developer → Access tokens**, and your workspace URL from the browser address bar.
 
-```bash
-databricks bundle deploy -t dev          # creates the "gated-rag-medallion" job
-databricks bundle run gated_rag_medallion -t dev
-databricks bundle run gated_rag_medallion -t dev --var="limit="   # full corpus
+```powershell
+# Windows (PowerShell)
+$env:DATABRICKS_HOST="https://dbc-xxxxxxxx-xxxx.cloud.databricks.com"
+$env:DATABRICKS_TOKEN="dapi..."
+./scripts/deploy.ps1 -Run                 # fast first run (limit=25)
+./scripts/deploy.ps1 -Run -Limit ""       # full ~510-contract corpus
 ```
 
-Set the workspace `host` in [`../databricks.yml`](../databricks.yml) first (or `databricks configure`).
+```bash
+# bash
+export DATABRICKS_HOST=https://dbc-xxxxxxxx-xxxx.cloud.databricks.com
+export DATABRICKS_TOKEN=dapi...
+./scripts/deploy.sh --run                 # fast first run (limit=25)
+./scripts/deploy.sh --run --limit ""      # full corpus
+```
+
+Nothing in [`../databricks.yml`](../databricks.yml) needs editing — host/token come from the env
+vars. The bundle deploys a Job whose tasks pull notebooks from GitHub `main`, so push before you run.
 
 ## After Gold lands — Genie
 

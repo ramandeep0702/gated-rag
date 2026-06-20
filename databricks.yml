@@ -1,18 +1,24 @@
-# Databricks Asset Bundle — the medallion pipeline as a 4-task Job.
-# Deploy:  databricks bundle deploy -t dev
-# Run:     databricks bundle run gated_rag_medallion -t dev
-# In the workspace this shows up under Workflows as a task DAG (the "pipeline view"):
-#   ingest_bronze -> chunk_silver -> embed_gold -> index_and_eval (the gate)
+# Databricks Asset Bundle — the medallion pipeline as a single Job (the "pipeline view").
 #
-# Tasks pull the notebooks straight from GitHub (source: GIT), so each task's working dir is the
-# repo checkout and the notebooks' `src/` bootstrap resolves. No cluster is specified — on Free
-# Edition the tasks run on serverless compute.
+# Pipeline dependency graph (rendered as a task DAG under Workflows):
+#
+#     ingest_bronze ──▶ chunk_silver ──▶ embed_gold ──▶ index_and_eval
+#       (Bronze)          (Silver)         (Gold)          (THE GATE)
+#       CUAD→Delta      chunk+char_span   +embeddings   per-contract metrics,
+#                                                        fails job on regression
+#
+# Each task depends on the one before it (`depends_on`), so a stage only runs once its upstream
+# table exists. Tasks pull notebooks from GitHub (source: GIT, public repo — no Git creds needed),
+# run on serverless, and resolve the repo's src/ from the checkout.
+#
+# Deploy + run with one command:  ./scripts/deploy.ps1 -Run        (Windows)
+#                                 ./scripts/deploy.sh --run         (bash)
 
 bundle:
   name: gated-rag
 
 variables:
-  # Max contracts for the ingest task. "25" = fast first run; set to "" for the full ~510 corpus.
+  # Max contracts for ingest. "25" = fast first run; pass "" (empty) for the full ~510 corpus.
   limit:
     default: "25"
 
@@ -34,22 +40,19 @@ resources:
               limit: ${var.limit}
 
         - task_key: chunk_silver
-          depends_on:
-            - task_key: ingest_bronze
+          depends_on: [{ task_key: ingest_bronze }]
           notebook_task:
             notebook_path: notebooks/02_chunk_silver.py
             source: GIT
 
         - task_key: embed_gold
-          depends_on:
-            - task_key: chunk_silver
+          depends_on: [{ task_key: chunk_silver }]
           notebook_task:
             notebook_path: notebooks/03_embed_gold.py
             source: GIT
 
         - task_key: index_and_eval
-          depends_on:
-            - task_key: embed_gold
+          depends_on: [{ task_key: embed_gold }]
           notebook_task:
             notebook_path: notebooks/04_index_and_eval.py
             source: GIT
@@ -57,7 +60,6 @@ resources:
 targets:
   dev:
     default: true
-    # Fill in your workspace URL (Free Edition looks like https://dbc-xxxxxxxx-xxxx.cloud.databricks.com).
-    # Or run `databricks configure` first and `databricks bundle deploy` picks up the host.
-    workspace:
-      host: https://REPLACE-WITH-YOUR-WORKSPACE-HOST
+    mode: development
+    # No workspace.host here on purpose: auth + host come from DATABRICKS_HOST / DATABRICKS_TOKEN
+    # env vars (the deploy script sets them), so nothing in this file needs hand-editing.
