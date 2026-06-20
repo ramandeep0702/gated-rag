@@ -10,8 +10,9 @@ The CUAD expert clause annotations give a ready-made golden eval set
 (question = clause-category prompt, answer = annotated span), so the gate is grounded
 in expert labels, not vibes.
 
-> **Status: skeleton.** Logic is intentionally stubbed (`TODO`). This repo defines the
-> structure, interfaces, and config surface; the bodies are written incrementally.
+> **Status: core implemented.** The full local path runs end-to-end — ingest → chunk → embed →
+> FAISS retrieval → eval gate — and is covered by unit tests + CI. The Databricks Vector Search
+> backend remains optional (`# VERIFY` entitlement). See *Quickstart* below.
 
 ## Architecture
 
@@ -41,6 +42,25 @@ gated-rag/
 └── docs/design.md              # framework/config boundary + chunking decision
 ```
 
+## Quickstart (local, no Databricks)
+
+The default path is FAISS + SentenceTransformers, so the whole pipeline and its eval gate run on a
+laptop or in CI:
+
+```bash
+pip install -e .            # core deps (faiss-cpu, sentence-transformers, datasets, tiktoken, ...)
+pip install -e ".[dev]"     # + pytest, ruff
+
+# fast smoke run over a handful of contracts (downloads CUAD + the embedding model on first use)
+python -m gated_rag.pipeline --limit 25
+
+# full corpus run (all ~510 contracts)
+python -m gated_rag.pipeline
+```
+
+The run prints recall@k / MRR / groundedness, then **exits non-zero if any gate threshold is unmet**
+— that exit code is the whole point. Unit tests (no network needed) run with `pytest`.
+
 ## Config
 
 Everything is driven by [`configs/default.yaml`](configs/default.yaml). Swapping the
@@ -52,3 +72,7 @@ not a code change.
 Anything that may not run on Databricks Free Edition is flagged `# VERIFY` in code/config:
 Vector Search entitlement, Unity Catalog catalog naming, serverless, and MLflow tracking.
 The FAISS + SentenceTransformers default path is chosen to avoid those dependencies.
+
+Resolved so far (via [`notebooks/00_verify_env.py`](notebooks/00_verify_env.py) on a real Free
+Edition workspace): there is **no `main` catalog** — the writable catalog is **`workspace`**, so
+`catalog.catalog` is set accordingly.
