@@ -71,8 +71,10 @@ def evaluate(cfg: Config, retriever: Retriever,
     gnd: list[float] = []
 
     for item in golden:
-        results = retriever.query(item["question"], top_k=max_k)
         cid, spans = item["contract_id"], item["answer_spans"]
+        # CUAD questions are contract-agnostic, so retrieval is scoped to the question's contract
+        # (the realistic "ask questions about THIS contract" path).
+        results = retriever.query(item["question"], top_k=max_k, filter_contract_id=cid)
         for k in k_values:
             recalls[k].append(M.recall_at_k(results, cid, spans, k))
         rr.append(M.reciprocal_rank(results, cid, spans))

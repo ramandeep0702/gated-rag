@@ -21,7 +21,10 @@ in expert labels, not vibes.
 - **Retrieval behind a swappable interface**, selected by config:
   1. **FAISS** (default) — local, runs on Databricks Free Edition for sure.
   2. **Databricks Vector Search** (optional) — used *if* the workspace supports it. `# VERIFY`
-- Retrieval returns chunks **with citations** (contract id + clause span).
+- Retrieval returns chunks **with citations** (contract id + clause span), and is **scoped
+  per-contract** (`query(..., filter_contract_id=...)`) — the realistic "ask questions about THIS
+  contract" path, and far better than global search on CUAD's contract-agnostic questions
+  (recall@5 0.50 vs 0.13; see [docs/design.md](docs/design.md) §3.2).
 - **Eval harness** scores recall@k, MRR, and groundedness against the CUAD-derived
   golden set, with **configurable thresholds that fail the run** if unmet (the gate).
 

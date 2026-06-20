@@ -28,6 +28,10 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 
+[tool.ruff.lint.per-file-ignores]
+# importorskip must run before the backend-dependent imports it guards.
+"tests/test_retriever.py" = ["E402"]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]

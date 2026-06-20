@@ -24,9 +24,11 @@ class VectorSearchRetriever(Retriever):
         #       upsert chunks. If embedding_source == precomputed, push our vectors; if managed, push text.
         raise NotImplementedError
 
-    def query(self, text: str, top_k: Optional[int] = None) -> list[RetrievedChunk]:
+    def query(self, text: str, top_k: Optional[int] = None,
+              filter_contract_id: Optional[str] = None) -> list[RetrievedChunk]:
         # TODO: k = top_k or cfg.top_k; if precomputed, embed text then similarity_search by vector,
-        #       else query by text; map results -> RetrievedChunk WITH citations.
+        #       else query by text; when filter_contract_id is set, pass it as a metadata filter
+        #       (filters={"contract_id": filter_contract_id}); map results -> RetrievedChunk WITH citations.
         raise NotImplementedError
 
     def persist(self) -> None:

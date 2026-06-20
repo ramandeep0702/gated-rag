@@ -36,8 +36,14 @@ class Retriever(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def query(self, text: str, top_k: Optional[int] = None) -> list[RetrievedChunk]:
-        """Embed `text`, search, and return up to top_k chunks WITH citations (top_k defaults to config)."""
+    def query(self, text: str, top_k: Optional[int] = None,
+              filter_contract_id: Optional[str] = None) -> list[RetrievedChunk]:
+        """Embed `text`, search, and return up to top_k chunks WITH citations.
+
+        top_k defaults to config. When filter_contract_id is set, search is scoped to that
+        contract's chunks only — the "ask questions about THIS contract" path, and how the eval
+        is scored (CUAD questions are contract-agnostic, so global search is ill-posed).
+        """
         raise NotImplementedError
 
     @abstractmethod

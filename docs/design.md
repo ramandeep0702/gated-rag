@@ -95,16 +95,36 @@ which directly affects recall@k and groundedness, the metrics the gate enforces.
 **structure** and let the golden-set metrics decide — the harness exists precisely to make this an
 empirical call, not an aesthetic one.
 
-**Decision:** _______________________________________________  (rationale: ____________________)
+**Decision:** Ship **token** as the baseline. Rationale: it cleared the gate end-to-end with no
+heading-detection risk, and the eval harness is now in place to test **structure** empirically and
+let recall/groundedness decide. (`structure` is implemented and config-selectable.)
 
-### 3.2 Eval thresholds (gate values)  ← YOUR CALL, after baseline
+### 3.2 Retrieval scoping (per-contract vs global)  ← decided empirically
 
-`eval.gate.thresholds` currently holds placeholders (recall@5 ≥ 0.80, MRR ≥ 0.65, groundedness ≥
-0.70). Set real values **after** a baseline run so the gate is honest, not aspirational.
+CUAD questions are contract-agnostic templated prompts ("Highlight the parts… related to 'X'…"),
+so a single global index over all contracts is close to ill-posed — the right contract's clause
+competes with every other contract's same clause. Measured on a 15-contract sample:
 
-**Decision:** _______________________________________________
+| scope | recall@5 |
+|---|---|
+| global (one index, all contracts) | 0.13 |
+| **per-contract (scoped to the question's contract)** | **0.61** |
 
-### 3.3 Groundedness definition
+**Decision:** retrieve **per-contract** (`Retriever.query(..., filter_contract_id=...)`). This is
+also the realistic "ask questions about THIS contract" product and the natural seat for a Genie /
+LLM answer layer. Global library-wide search remains possible (omit the filter) but isn't what the
+gate scores.
+
+### 3.3 Eval thresholds (gate values)  ← set after baseline
+
+Calibrated against the per-contract baseline (40-contract sample, token chunks, bge-small):
+recall@5 0.50 / MRR 0.36 / groundedness 0.24.
+
+**Decision:** recall@5 ≥ **0.45**, MRR ≥ **0.30**, groundedness ≥ **0.20** — just under baseline so
+the gate passes today and trips on regression. Raise as retrieval improves (smaller chunks for
+groundedness, a reranker, structure chunking).
+
+### 3.4 Groundedness definition
 
 Current: char-span overlap of the **top-1** retrieved chunk against the annotated CUAD span — no LLM
 judge, fully deterministic, free. An LLM-judged faithfulness variant is possible later (`# VERIFY`)
@@ -112,7 +132,7 @@ but adds cost/non-determinism and isn't needed to gate *retrieval*.
 
 **Decision (keep span-overlap? add LLM judge later?):** _______________________________________
 
-### 3.4 Open `# VERIFY` items (Free Edition)
+### 3.5 Open `# VERIFY` items (Free Edition)
 - Vector Search entitlement (`retrieval.vector_search.*`).
 - UC catalog name (`main` vs `workspace`) + `CREATE SCHEMA` privilege.
 - `faiss-cpu` install/import on the cluster.
