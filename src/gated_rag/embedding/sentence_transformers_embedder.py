@@ -11,16 +11,31 @@ from .base import Embedder
 
 class SentenceTransformersEmbedder(Embedder):
     def __init__(self, cfg: EmbeddingConfig) -> None:
-        # TODO: store cfg; lazily construct SentenceTransformer(cfg.model) on first use.
-        # Hint: defer the heavy import (from sentence_transformers import SentenceTransformer)
-        #       so importing this module stays cheap in tests.
-        raise NotImplementedError
+        self.cfg = cfg
+        self._st = None  # lazily constructed SentenceTransformer (heavy import deferred)
+
+    def _model(self):
+        if self._st is None:
+            from sentence_transformers import SentenceTransformer
+
+            self._st = SentenceTransformer(self.cfg.model)
+        return self._st
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
-        # TODO: encode in batches of cfg.batch_size; if cfg.normalize, L2-normalize; return float32.
-        raise NotImplementedError
+        """Encode in batches of cfg.batch_size; L2-normalize if configured; return float32."""
+        texts = list(texts)
+        if not texts:
+            return np.zeros((0, self.cfg.dim), dtype=np.float32)
+
+        vecs = self._model().encode(
+            texts,
+            batch_size=self.cfg.batch_size,
+            normalize_embeddings=self.cfg.normalize,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+        )
+        return np.asarray(vecs, dtype=np.float32)
 
     @property
     def dim(self) -> int:
-        # TODO: return cfg.dim (assert it matches the loaded model's output dimension).
-        raise NotImplementedError
+        return self.cfg.dim

@@ -11,7 +11,7 @@ corpus:
 
 catalog:
   # Unity Catalog three-level namespace: <catalog>.<schema>.<table>
-  catalog: main                            # VERIFY: Free Edition workspace catalog name (often `main` or `workspace`)
+  catalog: workspace                       # RESOLVED: Free Edition has no `main`; `workspace` is the writable catalog (00_verify_env)
   schema: gated_rag                        # created if missing during ingest
   bronze_table: contracts_bronze           # raw contract text + metadata
   silver_table: chunks_silver              # cleaned + chunked
@@ -42,7 +42,7 @@ retrieval:
 
   vector_search:                           # used when backend == vector_search
     endpoint_name: gated-rag-endpoint
-    index_name: main.gated_rag.chunks_gold_index   # VERIFY: requires Vector Search entitlement on the workspace
+    index_name: workspace.gated_rag.chunks_gold_index   # VERIFY: requires Vector Search entitlement on the workspace
     embedding_source: precomputed          # precomputed (we push gold vectors) | managed (endpoint embeds for us)
 
 eval:

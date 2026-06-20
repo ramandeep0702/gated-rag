@@ -11,13 +11,16 @@ from .base import RetrievedChunk, Retriever
 
 
 def build_retriever(cfg: RetrievalConfig, embedder: Embedder) -> Retriever:
-    """Resolve retrieval.backend -> concrete Retriever.
+    """Resolve retrieval.backend -> concrete Retriever. Impls imported lazily per branch."""
+    if cfg.backend == "faiss":
+        from .faiss_retriever import FaissRetriever
 
-    Hint: 'faiss' -> FaissRetriever; 'vector_search' -> VectorSearchRetriever (# VERIFY entitlement);
-    else raise ValueError. Import impls lazily inside the branch so databricks-vectorsearch stays optional.
-    """
-    # TODO: dispatch on cfg.backend.
-    raise NotImplementedError
+        return FaissRetriever(cfg, embedder)
+    if cfg.backend == "vector_search":
+        from .vector_search_retriever import VectorSearchRetriever  # VERIFY entitlement
+
+        return VectorSearchRetriever(cfg, embedder)
+    raise ValueError(f"unknown retrieval.backend: {cfg.backend!r}")
 
 
 __all__ = ["Retriever", "RetrievedChunk", "build_retriever"]

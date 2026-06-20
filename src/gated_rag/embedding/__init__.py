@@ -9,13 +9,12 @@ from .base import Embedder
 
 
 def build_embedder(cfg: EmbeddingConfig) -> Embedder:
-    """Resolve embedding.backend -> concrete Embedder.
+    """Resolve embedding.backend -> concrete Embedder. Impls imported lazily per branch."""
+    if cfg.backend == "sentence_transformers":
+        from .sentence_transformers_embedder import SentenceTransformersEmbedder
 
-    Hint: 'sentence_transformers' -> SentenceTransformersEmbedder(cfg); else raise ValueError.
-    Import impls lazily inside the branch to keep optional deps optional.
-    """
-    # TODO: dispatch on cfg.backend.
-    raise NotImplementedError
+        return SentenceTransformersEmbedder(cfg)
+    raise ValueError(f"unknown embedding.backend: {cfg.backend!r}")
 
 
 __all__ = ["Embedder", "build_embedder"]

@@ -6,6 +6,7 @@ matches the chosen model, retrieval.backend has a matching sub-config).
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -106,20 +107,93 @@ class Config:
     raw: dict[str, Any] = field(default_factory=dict)  # original parsed YAML, for round-tripping
 
 
+# A threshold key is a recognized metric if it is mrr, groundedness, or recall_at_<k>.
+_RECALL_KEY = re.compile(r"^recall_at_\d+$")
+_KNOWN_METRICS = {"mrr", "groundedness"}
+
+
+def _is_known_metric_key(name: str) -> bool:
+    return name in _KNOWN_METRICS or bool(_RECALL_KEY.match(name))
+
+
 def load_config(path: str = "configs/default.yaml") -> Config:
     """Parse YAML at `path` into a typed Config.
 
-    Hint: yaml.safe_load -> build nested dataclasses -> call validate(cfg) before returning.
+    yaml.safe_load -> build nested dataclasses -> validate(cfg) before returning. The original
+    parsed dict is kept on Config.raw for round-tripping / passing through to notebooks.
     """
-    # TODO: read file, yaml.safe_load, construct dataclasses, keep the raw dict on Config.raw.
-    raise NotImplementedError
+    import yaml
+
+    with open(path, "r", encoding="utf-8") as f:
+        raw = yaml.safe_load(f)
+
+    r = raw["retrieval"]
+    e = raw["eval"]
+    cfg = Config(
+        corpus=CorpusConfig(**raw["corpus"]),
+        catalog=CatalogConfig(**raw["catalog"]),
+        chunking=ChunkingConfig(**raw["chunking"]),
+        embedding=EmbeddingConfig(**raw["embedding"]),
+        retrieval=RetrievalConfig(
+            backend=r["backend"],
+            top_k=r["top_k"],
+            faiss=FaissConfig(**r["faiss"]),
+            vector_search=VectorSearchConfig(**r["vector_search"]),
+        ),
+        eval=EvalConfig(
+            golden_path=e["golden_path"],
+            k_values=e["k_values"],
+            metrics=e["metrics"],
+            gate=GateConfig(**e["gate"]),
+        ),
+        run=RunConfig(
+            seed=raw["run"]["seed"],
+            mlflow=MlflowConfig(**raw["run"]["mlflow"]),
+        ),
+        raw=raw,
+    )
+    validate(cfg)
+    return cfg
 
 
 def validate(cfg: Config) -> None:
-    """Fail fast on incoherent config.
-
-    Hint: assert retrieval.backend in {faiss, vector_search}; chunking.strategy in {token, structure};
-    embedding.dim consistent with the model; gate.thresholds keys are recognized metrics.
-    """
-    # TODO: raise ValueError with an actionable message on any violation.
-    raise NotImplementedError
+    """Fail fast on incoherent config. Raises ValueError with an actionable message."""
+    if cfg.retrieval.backend not in {"faiss", "vector_search"}:
+        raise ValueError(
+            f"retrieval.backend must be 'faiss' or 'vector_search', got {cfg.retrieval.backend!r}"
+        )
+    if cfg.chunking.strategy not in {"token", "structure"}:
+        raise ValueError(
+            f"chunking.strategy must be 'token' or 'structure', got {cfg.chunking.strategy!r}"
+        )
+    if cfg.chunking.overlap_tokens >= cfg.chunking.max_tokens:
+        raise ValueError(
+            f"chunking.overlap_tokens ({cfg.chunking.overlap_tokens}) must be < "
+            f"max_tokens ({cfg.chunking.max_tokens}) or the window never advances"
+        )
+    if cfg.embedding.dim <= 0:
+        raise ValueError(f"embedding.dim must be positive, got {cfg.embedding.dim}")
+    if cfg.embedding.batch_size <= 0:
+        raise ValueError(f"embedding.batch_size must be positive, got {cfg.embedding.batch_size}")
+    if cfg.retrieval.top_k <= 0:
+        raise ValueError(f"retrieval.top_k must be positive, got {cfg.retrieval.top_k}")
+    if cfg.retrieval.faiss.metric not in {"ip", "l2"}:
+        raise ValueError(
+            f"retrieval.faiss.metric must be 'ip' or 'l2', got {cfg.retrieval.faiss.metric!r}"
+        )
+    # 'ip' similarity only equals cosine when vectors are normalized — catch the mismatch early.
+    if cfg.retrieval.faiss.metric == "ip" and not cfg.embedding.normalize:
+        raise ValueError(
+            "retrieval.faiss.metric == 'ip' assumes normalized vectors for cosine similarity, "
+            "but embedding.normalize is false. Set normalize: true or use metric: l2."
+        )
+    unknown = [k for k in cfg.eval.gate.thresholds if not _is_known_metric_key(k)]
+    if unknown:
+        raise ValueError(
+            f"eval.gate.thresholds has unrecognized metric keys {unknown}; "
+            "expected 'mrr', 'groundedness', or 'recall_at_<k>'."
+        )
+    if cfg.eval.gate.on_failure not in {"fail", "warn"}:
+        raise ValueError(
+            f"eval.gate.on_failure must be 'fail' or 'warn', got {cfg.eval.gate.on_failure!r}"
+        )
