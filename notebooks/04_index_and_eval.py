@@ -20,13 +20,24 @@ import sys
 
 
 def bootstrap():
+    """Put the repo's src/ on the path; prefer the bundle-provided repo_root, else walk up from cwd."""
+    candidates = []
+    try:
+        dbutils.widgets.text("repo_root", "")
+        rr = dbutils.widgets.get("repo_root").strip()
+        if rr:
+            candidates.append(rr)
+    except Exception:
+        pass
     p = os.getcwd()
     for _ in range(6):
-        if os.path.isdir(os.path.join(p, "src", "gated_rag")):
-            sys.path.insert(0, os.path.join(p, "src"))
-            return p
+        candidates.append(p)
         p = os.path.dirname(p)
-    raise RuntimeError("could not locate gated_rag/src — run this from the repo Git folder")
+    for c in candidates:
+        if os.path.isdir(os.path.join(c, "src", "gated_rag")):
+            sys.path.insert(0, os.path.join(c, "src"))
+            return c
+    raise RuntimeError(f"could not locate gated_rag/src — tried {candidates}")
 
 
 REPO_ROOT = bootstrap()

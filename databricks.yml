@@ -8,8 +8,9 @@
 #                                                        fails job on regression
 #
 # Each task depends on the one before it (`depends_on`), so a stage only runs once its upstream
-# table exists. Tasks pull notebooks from GitHub (source: GIT, public repo — no Git creds needed),
-# run on serverless, and resolve the repo's src/ from the checkout.
+# table exists. The bundle syncs this whole repo (notebooks + src/ + configs/) to the workspace on
+# deploy, and the tasks run those synced copies — no GitHub access needed from the job, and local
+# edits take effect on the next `deploy` without pushing.
 #
 # Deploy + run with one command:  ./scripts/deploy.ps1 -Run        (Windows)
 #                                 ./scripts/deploy.sh --run         (bash)
@@ -22,40 +23,45 @@ variables:
   limit:
     default: "25"
 
+# Make sure src/ and configs/ ride along to the workspace so the notebooks can import gated_rag
+# and load the config (they aren't referenced as tasks, so include them explicitly).
+sync:
+  include:
+    - src/**
+    - configs/**
+
 resources:
   jobs:
     gated_rag_medallion:
       name: gated-rag-medallion
-      git_source:
-        git_url: https://github.com/ramandeep0702/gated-rag
-        git_provider: gitHub
-        git_branch: main
-
       tasks:
         - task_key: ingest_bronze
           notebook_task:
-            notebook_path: notebooks/01_ingest.py
-            source: GIT
+            notebook_path: ./notebooks/01_ingest.py
             base_parameters:
+              repo_root: ${workspace.file_path}
               limit: ${var.limit}
 
         - task_key: chunk_silver
           depends_on: [{ task_key: ingest_bronze }]
           notebook_task:
-            notebook_path: notebooks/02_chunk_silver.py
-            source: GIT
+            notebook_path: ./notebooks/02_chunk_silver.py
+            base_parameters:
+              repo_root: ${workspace.file_path}
 
         - task_key: embed_gold
           depends_on: [{ task_key: chunk_silver }]
           notebook_task:
-            notebook_path: notebooks/03_embed_gold.py
-            source: GIT
+            notebook_path: ./notebooks/03_embed_gold.py
+            base_parameters:
+              repo_root: ${workspace.file_path}
 
         - task_key: index_and_eval
           depends_on: [{ task_key: embed_gold }]
           notebook_task:
-            notebook_path: notebooks/04_index_and_eval.py
-            source: GIT
+            notebook_path: ./notebooks/04_index_and_eval.py
+            base_parameters:
+              repo_root: ${workspace.file_path}
 
 targets:
   dev:
