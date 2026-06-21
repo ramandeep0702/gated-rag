@@ -10,9 +10,11 @@ The CUAD expert clause annotations give a ready-made golden eval set
 (question = clause-category prompt, answer = annotated span), so the gate is grounded
 in expert labels, not vibes.
 
-> **Status: core implemented.** The full local path runs end-to-end — ingest → chunk → embed →
-> FAISS retrieval → eval gate — and is covered by unit tests + CI. The Databricks Vector Search
-> backend remains optional (`# VERIFY` entitlement). See *Quickstart* below.
+> **Status: running end-to-end, local and on Databricks.** The local path (ingest → chunk → embed →
+> FAISS retrieval → eval gate) is covered by unit tests + CI. The same code runs as a 4-task
+> Databricks Job (Bronze → Silver → Gold → gate) — verified green on Free Edition serverless with
+> the gate passing. See *Quickstart* (local) and [`notebooks/README.md`](notebooks/README.md)
+> (Databricks). The Databricks Vector Search backend remains optional (`# VERIFY` entitlement).
 
 ## Architecture
 
