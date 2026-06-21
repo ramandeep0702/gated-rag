@@ -34,12 +34,12 @@ resources:
   jobs:
     gated_rag_medallion:
       name: gated-rag-medallion
-      # Bound the whole run so nothing hangs indefinitely (serverless cold start + %pip + HF
-      # downloads should finish well within this).
-      timeout_seconds: 3600
+      # Bound the whole run so nothing hangs indefinitely. Sized for the full ~510-contract corpus
+      # (cold start + %pip + HF model download + CPU embedding of ~12k chunks).
+      timeout_seconds: 10800
       tasks:
         - task_key: ingest_bronze
-          timeout_seconds: 1200
+          timeout_seconds: 1800
           notebook_task:
             notebook_path: ./notebooks/01_ingest.py
             base_parameters:
@@ -48,7 +48,7 @@ resources:
 
         - task_key: chunk_silver
           depends_on: [{ task_key: ingest_bronze }]
-          timeout_seconds: 1200
+          timeout_seconds: 1800
           notebook_task:
             notebook_path: ./notebooks/02_chunk_silver.py
             base_parameters:
@@ -56,7 +56,7 @@ resources:
 
         - task_key: embed_gold
           depends_on: [{ task_key: chunk_silver }]
-          timeout_seconds: 1800
+          timeout_seconds: 3600
           notebook_task:
             notebook_path: ./notebooks/03_embed_gold.py
             base_parameters:
@@ -64,7 +64,7 @@ resources:
 
         - task_key: index_and_eval
           depends_on: [{ task_key: embed_gold }]
-          timeout_seconds: 1800
+          timeout_seconds: 3600
           notebook_task:
             notebook_path: ./notebooks/04_index_and_eval.py
             base_parameters:
